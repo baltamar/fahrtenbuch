@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1e3a8a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Fahrtenbuch" />
+  <meta name="description" content="Fahrtenbuch für die Strecke Wohnung ↔ Lager" />
+  <title>Fahrtenbuch</title>
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- App Shell -->
+  <header class="app-header" role="banner">
+    <h1 class="app-title">Fahrtenbuch</h1>
+    <div class="app-subtitle" id="appSubtitle" hidden></div>
+  </header>
+
+  <main id="appRoot" class="app-main">
+
+    <!-- ====================== ERFASSEN ====================== -->
+    <section id="view-capture" class="view" aria-labelledby="captureHeading">
+      <h2 id="captureHeading" class="view-heading">Fahrt erfassen</h2>
+
+      <div id="captureBlocker" class="card warn-card" hidden>
+        <p>Bitte zuerst die <strong>Einstellungen</strong> (Tarif und Strecken) ausfüllen, bevor du eine Fahrt erfasst.</p>
+        <button type="button" class="btn btn-primary" data-go="settings">Zu den Einstellungen</button>
+      </div>
+
+      <form id="captureForm" class="card" novalidate>
+        <div class="form-row">
+          <label for="tripDate">Datum</label>
+          <input type="date" id="tripDate" name="tripDate" required />
+        </div>
+
+        <fieldset class="form-row">
+          <legend>Richtung</legend>
+          <div class="seg-control" role="radiogroup" aria-label="Richtung der Fahrt">
+            <input type="radio" id="dirForward" name="direction" value="forward" />
+            <label for="dirForward">Nur Hin</label>
+
+            <input type="radio" id="dirReturn" name="direction" value="return" />
+            <label for="dirReturn">Nur Rück</label>
+
+            <input type="radio" id="dirBoth" name="direction" value="both" checked />
+            <label for="dirBoth">Hin + Rück</label>
+          </div>
+        </fieldset>
+
+        <div class="form-row">
+          <label for="tripNote">Notiz (optional)</label>
+          <input type="text" id="tripNote" name="tripNote" maxlength="200" placeholder="z. B. Kundenbesuch Müller" />
+        </div>
+
+        <div class="form-hint" id="captureHint" aria-live="polite"></div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary btn-block">Speichern</button>
+        </div>
+
+        <div id="captureMsg" class="form-msg" role="status" aria-live="polite"></div>
+      </form>
+    </section>
+
+    <!-- ====================== ÜBERSICHT ====================== -->
+    <section id="view-overview" class="view" aria-labelledby="overviewHeading" hidden>
+      <h2 id="overviewHeading" class="view-heading">Übersicht</h2>
+
+      <div class="filter-bar card">
+        <div class="form-row">
+          <label for="filterMonth">Monat</label>
+          <input type="month" id="filterMonth" name="filterMonth" />
+        </div>
+        <div class="summary" id="summary">
+          <div class="summary-item">
+            <span class="summary-label">Fahrten</span>
+            <span class="summary-value" id="sumCount">0</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Kilometer</span>
+            <span class="summary-value" id="sumKm">0</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Summe</span>
+            <span class="summary-value" id="sumEur">0,00&nbsp;€</span>
+          </div>
+        </div>
+        <div class="form-actions form-actions-row">
+          <button type="button" class="btn btn-secondary" id="btnExportCsvMonth">CSV (Monat)</button>
+          <button type="button" class="btn btn-secondary" id="btnExportCsvAll">CSV (Alle)</button>
+          <button type="button" class="btn btn-primary" id="btnExportPdf">PDF drucken</button>
+        </div>
+      </div>
+
+      <div id="tripList" class="trip-list" aria-live="polite">
+        <p class="empty-msg">Noch keine Fahrten erfasst.</p>
+      </div>
+    </section>
+
+    <!-- ====================== EINSTELLUNGEN ====================== -->
+    <section id="view-settings" class="view" aria-labelledby="settingsHeading" hidden>
+      <h2 id="settingsHeading" class="view-heading">Einstellungen</h2>
+
+      <form id="settingsForm" class="card" novalidate>
+        <div class="form-row">
+          <label for="tariff">Tarif pro Kilometer (€)</label>
+          <input
+            type="text"
+            inputmode="decimal"
+            id="tariff"
+            name="tariff"
+            placeholder="0,30"
+            required
+          />
+          <div class="form-hint">z. B. 0,30 für 30 Cent pro Kilometer</div>
+        </div>
+
+        <div class="form-row">
+          <label for="forwardKm">Hin-Strecke (Wohnung → Lager) in km</label>
+          <input
+            type="text"
+            inputmode="decimal"
+            id="forwardKm"
+            name="forwardKm"
+            placeholder="z. B. 12,5"
+            required
+          />
+        </div>
+
+        <div class="form-row">
+          <label for="returnKm">Rück-Strecke (Lager → Wohnung) in km</label>
+          <input
+            type="text"
+            inputmode="decimal"
+            id="returnKm"
+            name="returnKm"
+            placeholder="z. B. 12,5"
+            required
+          />
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary btn-block">Speichern</button>
+        </div>
+        <div id="settingsMsg" class="form-msg" role="status" aria-live="polite"></div>
+      </form>
+
+      <div class="card danger-card">
+        <h3>Daten</h3>
+        <p class="muted">Alle Fahrten dauerhaft löschen. Die Einstellungen bleiben erhalten.</p>
+        <button type="button" class="btn btn-danger" id="btnClearTrips">Alle Fahrten löschen</button>
+      </div>
+
+      <p class="muted app-foot">
+        Version 1 · Daten werden ausschließlich lokal in diesem Browser gespeichert.
+      </p>
+    </section>
+
+    <!-- Bulk / Mehrfach-Erfassung -->
+    <section id="view-bulk" class="view" aria-labelledby="bulkHeading" hidden>
+      <h2 id="bulkHeading" class="view-heading">Mehrfach erfassen</h2>
+      <p class="muted">Mehrere Tage auf einmal anlegen – ideal für Pendler.</p>
+
+      <div class="card">
+        <div class="form-row">
+          <label class="field-label">Strecke wählen</label>
+          <div class="bulk-route" id="bulkRouteList" role="radiogroup" aria-label="Strecke">
+            <!-- dynamisch -->
+          </div>
+        </div>
+
+        <div class="bulk-month-bar">
+          <button type="button" class="btn-icon" id="bulkPrevMonth" aria-label="Vorheriger Monat">‹</button>
+          <div class="bulk-month-title" id="bulkMonthTitle">Juni 2026</div>
+          <button type="button" class="btn-icon" id="bulkNextMonth" aria-label="Nächster Monat">›</button>
+        </div>
+
+        <div class="bulk-weekdays" aria-hidden="true">
+          <span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span>
+        </div>
+        <div class="bulk-calendar" id="bulkCalendar" role="grid" aria-label="Tage auswählen">
+          <!-- dynamisch -->
+        </div>
+
+        <div class="bulk-summary">
+          <div class="bulk-count" id="bulkCount">0 Tage ausgewählt</div>
+          <div class="bulk-mode" role="radiogroup" aria-label="Modus">
+            <label class="seg-pill">
+              <input type="radio" name="bulkMode" value="both" checked />
+              <span>Hin+Rück</span>
+            </label>
+            <label class="seg-pill">
+              <input type="radio" name="bulkMode" value="forward" />
+              <span>Nur Hin</span>
+            </label>
+            <label class="seg-pill">
+              <input type="radio" name="bulkMode" value="return" />
+              <span>Nur Rück</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="bulkClear">Auswahl leeren</button>
+          <button type="button" class="btn btn-primary btn-block" id="bulkCreate" disabled>Erstellen</button>
+        </div>
+        <div id="bulkMsg" class="form-msg" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav" aria-label="Hauptnavigation">
+    <button type="button" class="nav-btn nav-btn-active" data-go="capture" aria-current="page">
+      <span class="nav-icon" aria-hidden="true">＋</span>
+      <span class="nav-label">Erfassen</span>
+    </button>
+    <button type="button" class="nav-btn" data-go="overview">
+      <span class="nav-icon" aria-hidden="true">≡</span>
+      <span class="nav-label">Übersicht</span>
+    </button>
+    <button type="button" class="nav-btn" data-go="bulk">
+      <span class="nav-icon" aria-hidden="true">▦</span>
+      <span class="nav-label">Mehrfach</span>
+    </button>
+    <button type="button" class="nav-btn" data-go="settings">
+      <span class="nav-icon" aria-hidden="true">⚙</span>
+      <span class="nav-label">Einstellungen</span>
+    </button>
+  </nav>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-panel card">
+      <h3 id="editModalTitle">Fahrt bearbeiten</h3>
+      <form id="editForm" novalidate>
+        <input type="hidden" id="editId" />
+        <div class="form-row">
+          <label for="editDate">Datum</label>
+          <input type="date" id="editDate" required />
+        </div>
+        <div class="form-row">
+          <label for="editDirection">Richtung</label>
+          <select id="editDirection">
+            <option value="forward">Hin (Wohnung → Lager)</option>
+            <option value="return">Rück (Lager → Wohnung)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="editKm">Kilometer</label>
+          <input type="text" inputmode="decimal" id="editKm" required />
+        </div>
+        <div class="form-row">
+          <label for="editTariff">Tarif (€/km)</label>
+          <input type="text" inputmode="decimal" id="editTariff" required />
+        </div>
+        <div class="form-row">
+          <label for="editNote">Notiz (optional)</label>
+          <input type="text" id="editNote" maxlength="200" />
+        </div>
+        <div class="form-hint" id="editHint" aria-live="polite"></div>
+        <div class="form-actions form-actions-row">
+          <button type="button" class="btn btn-secondary" data-modal-close>Abbrechen</button>
+          <button type="submit" class="btn btn-primary">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Confirm Modal (delete) -->
+  <div id="confirmModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-backdrop" data-confirm-close></div>
+    <div class="modal-panel card">
+      <h3 id="confirmTitle">Fahrt löschen?</h3>
+      <p id="confirmText">Soll diese Fahrt wirklich gelöscht werden?</p>
+      <div class="form-actions form-actions-row">
+        <button type="button" class="btn btn-secondary" data-confirm-close>Abbrechen</button>
+        <button type="button" class="btn btn-danger" id="confirmOk">Löschen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- Print-only view (PDF export) -->
+  <div id="printView" class="print-only" aria-hidden="true">
+    <h1>Fahrtenbuch</h1>
+    <p id="printMeta">Zeitraum: —</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Richtung</th>
+          <th>km</th>
+          <th>Tarif (€/km)</th>
+          <th>Betrag (€)</th>
+          <th>Notiz</th>
+        </tr>
+      </thead>
+      <tbody id="printBody"></tbody>
+      <tfoot>
+        <tr>
+          <th colspan="2">Summe</th>
+          <th id="printSumKm">0</th>
+          <th></th>
+          <th id="printSumEur">0,00&nbsp;€</th>
+          <th></th>
+        </tr>
+      </tfoot>
+    </table>
+    <p class="print-foot">Erstellt am <span id="printDate">—</span></p>
+  </div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
